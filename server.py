@@ -9,14 +9,18 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import time, socket, sys
 import threading
+import sqlite3
 
 conn = None
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+connection = sqlite3.connect('names.db')
+cursor = connection.cursor()
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("Servidor")
-        MainWindow.resize(800, 600)
+        MainWindow.setWindowTitle("Servidor")
+        MainWindow.resize(750, 500)
         MainWindow.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:1 rgba(23, 96, 135, 255));")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -30,6 +34,12 @@ class Ui_MainWindow(object):
         self.btn_enviar.setStyleSheet("font: 8pt \"Segoe UI\";\n""background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:1 rgb(0, 159, 183));")
         self.btn_enviar.setObjectName("btn_enviar")
         self.btn_enviar.clicked.connect(lambda:self.send())
+        self.bnt_buscar = QtWidgets.QPushButton(self.centralwidget)
+        self.bnt_buscar.setGeometry(QtCore.QRect(580,60,131,61))
+        self.bnt_buscar.setStyleSheet("font: 8pt \"Segoe UI\";\n""background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:1 rgb(0, 159, 183));")
+        self.bnt_buscar.setObjectName("btn_buscar")
+        self.btn_enviar.setEnabled(False)
+        self.bnt_buscar.clicked.connect(lambda:self.search())
         self.txt_send = QtWidgets.QTextEdit(self.centralwidget)
         self.txt_send.setGeometry(QtCore.QRect(100, 370, 441, 61))
         self.txt_send.setObjectName("txt_send")
@@ -54,10 +64,10 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Servidor"))
         self.btn_iniciar.setText(_translate("MainWindow", "Start Server"))
         self.btn_enviar.setText(_translate("MainWindow", "Send"))
-            
+        self.bnt_buscar.setText(_translate("MainWindow","Search"))            
     
     def updateMsg(self,text):
         self.txt_recv.setText(self.txt_recv.toPlainText()+"\n"+text)
@@ -65,8 +75,7 @@ class Ui_MainWindow(object):
     def start(self):
         self.txt_recv.setText("Starting server...")
         time.sleep(1)
-        host = "127.0.0.1"
-        ip = socket.gethostbyname(host)
+        host = "192.168.1.7"
         port = 4445
         server_socket.bind((host, port))
         server_socket.listen(5)
@@ -80,6 +89,8 @@ class Ui_MainWindow(object):
         self.l.txt.connect(self.updateMsg)
         self.l.start()
         self.btn_iniciar.setDisabled(True)
+        self.btn_enviar.setEnabled(True)
+        
         
     def send (self):
         message = self.txt_send.toPlainText()
@@ -88,15 +99,32 @@ class Ui_MainWindow(object):
         conn.send(message.encode())
         self.txt_send.setText("")
         
+    def search(self):
+        query = 'SELECT lname FROM names WHERE fname like \'' + self.txt_send.toPlainText() + '\''
+        if query == '': return
+        cursor.execute(query)
+        self.txt_send.setText(self.txt_send.toPlainText()+ ' '+ str(cursor.fetchone())[2:-3]  )
+        
+        
 class listener(QtCore.QThread):
     running = True
     txt = QtCore.pyqtSignal(str)
+    
     
     def run(self):
         while self.running:
             global conn
             message = conn.recv(1024)
             message = message.decode()
+            if message[:7] == '|QUERY|':
+                global connection
+                connection = sqlite3.connect('names.db')
+                cursor = connection.cursor()
+                query = 'SELECT lname FROM names WHERE fname like \'' + message[7:] + '\''
+                cursor.execute(query)
+                query = '|RESULT|' + str(cursor.fetchone())[2:-3]
+                conn.send(query.encode())
+                continue
             message = "Client says: " + message
             self.txt.emit(message)
             time.sleep(1)
