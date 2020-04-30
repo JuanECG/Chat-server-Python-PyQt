@@ -75,7 +75,7 @@ class Ui_MainWindow(object):
     def start(self):
         self.txt_recv.setText("Starting server...")
         time.sleep(1)
-        host = "192.168.1.7"
+        host = "NONE"
         port = 4445
         server_socket.bind((host, port))
         server_socket.listen(5)

@@ -83,7 +83,7 @@ class Ui_MainWindow(object):
     def connect(self):
         #shost = socket.gethostname()
         #ip = socket.gethostbyname(shost)
-        host = "192.168.1.7"
+        host = "NONE"
         port = 4445
         #self.txt_recv.setText("Trying to connect to "+ host+ "("+ str(port) +")\n")
         #self.txt_recv.setText("Trying to connect to "+ host+ "("+ port +")\n")
